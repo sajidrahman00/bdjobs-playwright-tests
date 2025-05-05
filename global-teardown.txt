@@ -1,0 +1,51 @@
+// tests/setup/global-teardown.js
+const fs = require('fs');
+const path = require('path');
+const { createCustomReport } = require('../../utils/reportUtils');
+
+/**
+ * Global teardown to be run after all tests
+ */
+async function globalTeardown(config) {
+  console.log('Running global teardown...');
+  
+  // Process test results if they exist
+  const resultsPath = path.join(process.cwd(), 'test-results', 'report.json');
+  
+  if (fs.existsSync(resultsPath)) {
+    try {
+      const rawResults = fs.readFileSync(resultsPath, 'utf8');
+      const results = JSON.parse(rawResults);
+      
+      // Summarize results
+      const summary = {
+        total: 0,
+        passed: 0,
+        failed: 0,
+        tests: []
+      };
+      
+      // Process test suites and individual tests
+      if (results.suites) {
+        results.suites.forEach(suite => {
+          if (suite.specs) {
+            suite.specs.forEach(spec => {
+              summary.total++;
+              if (spec.ok) summary.passed++;
+              else summary.failed++;
+              
+              summary.tests.push({
+                name: `${suite.title} - ${spec.title}`,
+                status: spec.ok ? 'passed' : 'failed',
+                duration: spec.duration
+              });
+            });
+          }
+        });
+      }
+      
+      // Create custom report
+      createCustomReport(summary);
+      
+    } catch (error) {
+      console.error('Error processing test results:', error)
